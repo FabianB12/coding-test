@@ -1,28 +1,31 @@
 /* External dependencies */
+import {UUIDV4} from "sequelize";
+
 const bcrypt = require('bcrypt');
-import lds from 'lodash';
+import dotenv from 'dotenv';
 
 /* Local dependencies */
-import passport from "../../server/auth/passport";
 
 /* Schemas */
 import { User } from "../../database/models/user";
 
+dotenv.config();
+
 const resolver = {
     Query: {
         hello: () => 'Hello world!',
-        me: (_, __, context) => {
-            // check if user has session
-            console.log("Is authenticated: " + context.isAuthenticated())
-            console.log("Is authenticated2: " + context.req.isAuthenticated())
-
-            if (context.isAuthenticated() || context.getUser()) {
-                return context.getUser();
+        me: (_, __, {req, res, user}) => {
+            if (!user) {
+                throw new Error('Not authenticated');
             }
+
+            return user;
         }
     },
     Mutation: {
-        register: async (_, { username, password }) => {
+        register: async (_, { username, password }, { req, res, user}) => {
+            if (user) throw new Error('User already logged in');
+
             // Check if user already exists
             const existingUser = await User.findOne({ where: { username } });
             if (existingUser) {
@@ -33,23 +36,62 @@ const resolver = {
             const passwordHash = await bcrypt.hash(password, 10);
 
             // Create the user
-            const user = await User.create({
+            const newUser = await User.create({
                 username,
                 password: passwordHash,
                 balance: 0
             });
 
-            return user;
+            let sid = crypto.randomUUID();
+            let expires = new Date(Date.now() + 604800000);
+
+            await User.update({ sid, expires }, { where: { id: newUser.id } })
+
+            res.cookie("sid", sid)
+
+            return newUser;
         },
-        login: async (_, { username, password }, context) => {
-            const { user } = await context.authenticate("graphql-local", {
-                username,
-                password
-            });
+        login: async (_, { username, password }, { req, res, user}) => {
+            return new Promise((resolve, reject) => {
 
-            context.login(user);
+                if (user) {
+                    return reject(new Error('User already logged in'));
+                }
 
-            return user;
+                // Check if user exists
+                User.findOne({ where: { username } }).then(user => {
+                    if (!user) {
+                        return reject(new Error('User does not exist'));
+                    }
+
+                    // Check the password
+                    bcrypt.compare(password, user.password).then(async isPasswordValid => {
+                        if (!isPasswordValid) {
+                            return reject(new Error('Incorrect password'));
+                        }
+
+
+                        let sid = crypto.randomUUID();
+                        let expires = new Date(Date.now() + 604800000);
+
+                        await User.update({ sid, expires }, { where: { id: user.id } })
+
+                        res.cookie("sid", sid)
+
+                        // Return the user object
+                        return resolve(user);
+                    });
+                });
+            })
+        },
+        logout: async (_, __, { req, res, user }) => {
+            if (!user) throw new Error('User not logged in');
+
+            await User.update({ sid: null, expires: null }, { where: { id: user.id } })
+
+            res.clearCookie("sid")
+
+            return true;
         }
     }
 }

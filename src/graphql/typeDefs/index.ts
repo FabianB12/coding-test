@@ -14,6 +14,8 @@ const typeDefs = /* GraphQL */ `
             username: String!
             password: String!
         ): User
+        
+        logout: Boolean!
     }
 
     type Bet {

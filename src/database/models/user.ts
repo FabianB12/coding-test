@@ -2,8 +2,7 @@ import { Table, Column, Model, DataType } from 'sequelize-typescript';
 
 @Table({ tableName: 'users' })
 export class User extends Model<User> {
-    // automatically generated id from uuid
-    @Column({ primaryKey: true, type: DataType.UUID, defaultValue:  DataType.UUIDV4 })
+    @Column({ primaryKey: true, type: DataType.INTEGER, autoIncrement: true})
     id: number;
 
     @Column({ unique: true, allowNull: false, type: DataType.STRING })
@@ -14,4 +13,11 @@ export class User extends Model<User> {
 
     @Column({ allowNull: false, type: DataType.INTEGER })
     balance: number;
+
+    @Column({ allowNull: true, type: DataType.STRING })
+    sid: string;
+
+    @Column({ allowNull: true, type: DataType.DATE })
+    expires: Date;
+
 }

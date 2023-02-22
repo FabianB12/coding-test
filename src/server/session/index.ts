@@ -12,6 +12,7 @@ export default session({
         db: sequelize
     }),
     secret: '12345lul67890',
+    name: 'sid',
     saveUninitialized: false,
     resave: false,
     cookie: {
@@ -20,4 +21,5 @@ export default session({
         sameSite: 'none',
         secure: true
     },
+    proxy: true
 })

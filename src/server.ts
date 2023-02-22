@@ -5,13 +5,13 @@ import { ApolloServer } from '@apollo/server';
 import { expressMiddleware } from '@apollo/server/express4';
 import { ApolloServerPluginDrainHttpServer } from '@apollo/server/plugin/drainHttpServer'
 import { typeDefs, resolvers } from './graphql';
-import { buildContext } from "graphql-passport";
 import cors from "./server/cors";
+import { Request, Response } from "express";
 
 /* Local dependencies */
 import app from './app';
 import sequelize from "./database";
-import passport from './server/auth/passport';
+import auth from './server/auth';
 import session from './server/session';
 
 /* Schemas */
@@ -35,10 +35,17 @@ process.on('uncaughtException', (err) => {
 
 const httpServer = http.createServer(app)
 
-const server = new ApolloServer({
+interface Context {
+    req: Request;
+    res: Response;
+    user?: User;
+}
+
+const server = new ApolloServer<Context>({
     typeDefs,
     resolvers,
     plugins: [ApolloServerPluginDrainHttpServer({httpServer})],
+    introspection: true,
 });
 
 server.start().then(async () => {
@@ -47,16 +54,10 @@ server.start().then(async () => {
     await sequelize.sync();
     console.log("[Database] Database setup complete!")
 
-    app.use(passport.initialize());
-    app.use(passport.session());
-
-    console.log("[Auth] Auth setup complete!")
-
     app.use(
         cors,
         expressMiddleware(server, {
-            context: async ({ req, res }) =>
-                buildContext({ req, res, User }),
+            context: auth
     }));
 
     await new Promise<void>((resolve) => httpServer.listen({port}, resolve));
