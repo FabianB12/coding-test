@@ -1,14 +1,14 @@
-import { Sequelize } from 'sequelize-typescript';
-import dotenv from 'dotenv'
+import { Sequelize } from "sequelize-typescript";
+import dotenv from "dotenv";
 
 /* Schemas */
-import { User } from './models/user'
-import { Bet } from './models/bet'
+import { User } from "./models/user";
+import { Bet } from "./models/bet";
 
-dotenv.config()
+dotenv.config();
 
 const sequelize = new Sequelize({
-    dialect: 'postgres',
+    dialect: "postgres",
     host: process.env.DB_HOST,
     port: parseInt(process.env.DB_PORT),
     username: process.env.DB_USER,
